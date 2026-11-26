@@ -18,6 +18,10 @@ CAPS = [
 TAKEOFF, LAND = 1.25, 1.7
 
 
+def bird(img, *a, **k):          # konturlu kuş (8-bit sprite)
+    outlined(img, godwit, *a, **k)
+
+
 def prog(tl):
     return ease((tl - 0.4) / 3.8)
 
@@ -100,20 +104,20 @@ def scene1(t):
     for i in range(7):
         k = (i + 1) // 2; side = 1 if i % 2 else -1
         tiny_bird(img, 600 - 46 * t + 12 * k, 250 + side * 7 * k, t * 1.6 + i * 0.13)
-    godwit(img, POST_X - 6, BIRD_Y, BIRD_S, 'stand', t * 0.5, look=0.6 * math.sin(t * 0.9))
-    return upscale(img)
+    bird(img, POST_X - 6, BIRD_Y, BIRD_S, 'stand', t * 0.5, look=0.6 * math.sin(t * 0.9))
+    return upscale(palettize(img, 's1'))
 
 
 def scene2(tl, t):
     img = harbor(t)
     if tl < TAKEOFF:
-        godwit(img, POST_X - 6, BIRD_Y, BIRD_S, 'stand', t * 0.5)
+        bird(img, POST_X - 6, BIRD_Y, BIRD_S, 'stand', t * 0.5)
     else:
         u = tl - TAKEOFF
-        godwit(img, POST_X - 6 + 70 * u + 40 * u * u, BIRD_Y - 50 * u - 60 * u * u, BIRD_S, 'fly', u * 3.2)
+        bird(img, POST_X - 6 + 70 * u + 40 * u * u, BIRD_Y - 50 * u - 60 * u * u, BIRD_S, 'fly', u * 3.2)
     k = ease(tl / 1.1)
     cx = int(270 + (POST_X + 30 - 270) * k); cy = int(480 + (BIRD_Y - 480) * k)
-    return upscale(img, (cx - 135, cy - 240, 270, 480))
+    return upscale(palettize(img, 's1'), (cx - 135, cy - 240, 270, 480))
 
 
 CL_NIGHT = [(0, 200, 220, 7, (30, 30, 70), (120, 120, 170), -50), (260, 330, 160, 6, (36, 34, 80), (140, 136, 186), -80),
@@ -130,8 +134,8 @@ def scene3(tl, t):
     clouds(img, CL_NIGHT, t)
     sea(img, 600, CH, (42, 38, 90), (12, 12, 36), t, speed=-90, reflect=[(420, 22, (190, 190, 230))])
     bob = 6 * math.sin(t * 2.6)
-    godwit(img, 230, 400 + bob, 3.6, 'fly', t * 3.0, light=(0.6, -0.5, 0.6), rim=(200, 204, 255))
-    return upscale(img)
+    bird(img, 230, 400 + bob, 3.6, 'fly', t * 3.0, light=(0.6, -0.5, 0.6), rim=(200, 204, 255))
+    return upscale(palettize(img, 's3'))
 
 
 CL_DAWN = [(60, 170, 240, 7, (92, 70, 138), (240, 168, 150), 3), (320, 260, 170, 6, (130, 84, 146), (255, 190, 150), 4),
@@ -158,12 +162,12 @@ def scene4(tl, t):
     if tl < LAND:
         k = ease(tl / LAND)
         x = 600 + (land[0] - 600) * k; y = 330 + (land[1] - 330) * k - 60 * math.sin(math.pi * k)
-        mirrored(img, godwit, x, y, 2.4, 'fly', t * 3.2, light=(-0.65, -0.35, 0.68))
+        mirrored(img, bird, x, y, 2.4, 'fly', t * 3.2, light=(-0.65, -0.35, 0.68))
     else:
-        mirrored(img, godwit, land[0], land[1], 2.4, 'stand', t * 0.5, light=(-0.65, -0.35, 0.68))
+        mirrored(img, bird, land[0], land[1], 2.4, 'stand', t * 0.5, light=(-0.65, -0.35, 0.68))
         if tl < LAND + 0.6 and int(tl * 12) % 2 == 0:
             sparkle(img, land[0] - 40, land[1] - 40, 5)
-    return upscale(img)
+    return upscale(palettize(img, 's4'))
 
 
 def frame_at(t):

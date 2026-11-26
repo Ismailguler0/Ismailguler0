@@ -22,13 +22,14 @@ NIGHT = [(0, (10, 10, 30)), (300, (24, 24, 62)), (600, (52, 42, 96))]
 DAWN = [(0, (56, 50, 110)), (240, (126, 82, 144)), (430, (226, 124, 120)), (560, (255, 186, 122))]
 LIT, GLOW, RIM = (255, 204, 116), (255, 170, 92), (255, 196, 140)
 LIGHT_DUSK = (-0.65, -0.35, 0.68)     # ışık soldan-yukarıdan (gün batımı)
+HARD_W = 0.10                         # ton geçiş şeridi genişliği (küçük = daha keskin, 8-bit)
 
 # ---- Malzeme rampaları (koyu -> açık)
-R_BIRD = [(52, 34, 42), (96, 62, 54), (146, 98, 70), (192, 138, 92), (226, 178, 124), (250, 212, 156)]
-R_WING = [(40, 28, 38), (74, 50, 48), (118, 80, 60), (162, 116, 80), (200, 156, 108)]
-R_WOOD = [(34, 22, 40), (62, 40, 54), (98, 64, 66), (142, 94, 78), (190, 132, 96)]
-R_MOON = [(70, 70, 110), (130, 128, 160), (190, 186, 200), (236, 230, 220), (255, 250, 236)]
-R_STONE = [(30, 24, 52), (52, 40, 78), (80, 58, 100), (118, 82, 118), (164, 112, 128)]
+R_BIRD = [(84, 52, 52), (150, 98, 70), (212, 156, 100), (250, 208, 150)]
+R_WING = [(48, 30, 40), (100, 66, 56), (156, 108, 76), (204, 158, 108)]
+R_WOOD = [(40, 26, 46), (88, 58, 62), (150, 98, 80), (200, 140, 98)]
+R_MOON = [(110, 108, 150), (190, 186, 204), (246, 240, 226)]
+R_STONE = [(34, 26, 58), (64, 46, 88), (110, 74, 112), (170, 112, 128)]
 
 
 def C(c, f=1.0):
@@ -56,6 +57,8 @@ def ramp_fill(img, mask, lum, ramp, x0, y0):
     n = len(ramp); v = np.clip(lum, 0, 0.9999) * (n - 1); k = np.floor(v).astype(int); f = v - k
     k2 = np.minimum(k + 1, n - 1)
     h, w = mask.shape
+    # 8-bit kuralı: tonlar keskin ayrılır; noktalı geçiş yalnızca sınırdaki dar şeritte
+    f = np.clip((f - 0.5) / (2 * HARD_W) + 0.5, 0, 1)
     pick = np.where(BAY[y0:y0 + h, x0:x0 + w] < f, k2, k)
     R = np.array(ramp, np.uint8)
     sub = img[y0:y0 + h, x0:x0 + w]
@@ -333,6 +336,31 @@ def mirrored(img, draw, x, *args, light=LIGHT_DUSK, **kw):
     draw(tmp, CW - 1 - x, *args, light=(-lx, ly, lz), **kw)
     tmp = tmp[:, ::-1]; m = tmp.any(2)
     img[m] = tmp[m]
+    return m
+
+
+def outlined(img, draw, *args, col=(26, 16, 34), **kw):
+    """Karakteri 1 px koyu konturla çiz (klasik 8-bit sprite görünümü)."""
+    tmp = np.zeros_like(img); draw(tmp, *args, **kw)
+    m = tmp.any(2)
+    edge = cv2.dilate(m.astype(np.uint8), np.ones((3, 3), np.uint8)).astype(bool) & ~m
+    img[edge] = col; img[m] = tmp[m]
+
+
+_PAL = {}
+
+
+def palettize(img, key, n=40):
+    """Sahneyi sınırlı palete indir (8-bit dili). Palet her sahne için ilk karede bir kez çıkarılır."""
+    if key not in _PAL:
+        q = Image.fromarray(img).quantize(colors=n, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+        pal = np.array(q.getpalette()[:n * 3], float).reshape(-1, 3)
+        g = (np.arange(32) * 8 + 4).astype(float)
+        cube = np.stack(np.meshgrid(g, g, g, indexing='ij'), -1).reshape(-1, 3)
+        idx = np.argmin(((cube[:, None, :] - pal[None]) ** 2).sum(-1), 1)
+        _PAL[key] = pal.astype(np.uint8)[idx].reshape(32, 32, 32, 3)
+    lut = _PAL[key]; q = img >> 3
+    return lut[q[..., 0], q[..., 1], q[..., 2]]
 
 
 def tiny_bird(img, x, y, phase, col=(34, 24, 54)):

@@ -25,7 +25,8 @@ Bu dosyaları baştan yazma, kullan:
   - Hacim: `ellipsoid` (gövde, kafa, ay, ağaç tepesi), `cylinder` (direk, kule) – ışık yönüne göre rampa + noktalı ton geçişi + gölge tarafında kenar ışığı. `ramp_fill` ile her maskeye kendi ışık haritan.
   - Atmosfer: `glow_layers` (geniş 3 katmanlı parıltı), `halo`, `cloud_band` (kalın, alt kenarı ışık alan bulut), `stars`.
   - Ortam: `sky`/`dgrad`, `skyline`/`draw_skyline` (yanan pencere, kenar ışığı, sis), `sea` (dalga + güneş/ay/pencere yansımaları), `vgrad_rect`, `dither_rect`.
-  - Karakter: `godwit` (gerçekçi kıyı kuşu; stand/fly, nefes, kanat fazı), `mirrored` (karakteri sola baktırır), `tiny_bird`, `sparkle`.
+  - Karakter: `godwit` (gerçekçi kıyı kuşu; stand/fly, nefes, kanat fazı), `outlined` (1 px kontur), `mirrored` (sola baktırır), `tiny_bird`, `sparkle`.
+  - 8-bit: `palettize` (sahne başına sabit ~40 renk), `HARD_W` (ton geçiş keskinliği).
   - Rampalar: `R_BIRD`, `R_WING`, `R_WOOD`, `R_STONE`, `R_MOON`. Paletler: `DUSK`, `NIGHT`, `DAWN`.
   - `upscale` (crop ile kamera), `captions`, `pill`, `signature`.
 - `render8.py <sahne.py> sheet|frame|video <çıktı>` – kontrol görüntüsü / tek kare / sessiz video.
@@ -36,12 +37,22 @@ Bu dosyaları baştan yazma, kullan:
 Çalışma klasörü: `/home/user/esik-araclar/<konu>/`. Python: `/home/user/esik-araclar/ana/bin/python`.
 
 ## Görsel kurallar – çekiciliğin sırrı
-Kullanıcı ilk düz renkli denemeyi "piksel ama çekici değil" diye reddetti. Referansı çekici yapan dört şey var;
-dördü de her sahnede olmalı:
+Kullanıcının iki geri bildirimi bu tarzın sınırlarını çizer:
+- İlk düz renkli deneme: "piksel ama çekici değil" → hacim, ışık ve atmosfer şart.
+- Yumuşak gölgeli ikinci deneme: "3D gibi olmuş, 8-bit görsel dil olmazsa olmaz" → hacim **keskin, az tonlu**
+  8-bit diliyle verilir; asla yumuşak 3D geçiş olmaz.
+
+**8-bit dili (olmazsa olmaz):**
+- Her sahne `palettize(img, 'sahne_adı')` ile ~40 renklik sabit palete indirilir (büyütmeden önce).
+- Gölge rampaları 3–4 ton; tonlar keskin sınırla ayrılır (`HARD_W` küçük). Noktalı (dither) geçiş yalnızca
+  ton sınırındaki dar şeritte, gökyüzünde ve parıltılarda.
+- Karakterler `outlined(...)` ile 1 px koyu konturlu çizilir (klasik sprite). Sola baktırmak için `mirrored(img, bird, ...)`.
+
+**Çekicilik (dördü de her sahnede):**
 1. **İnce piksel = detay.** 540×960 tuval. Kamera sadece tam piksel crop ile hareket eder (yakın plan 270×480).
    Yumuşak bulanıklık, döndürme, ölçekleme yok.
-2. **Hacimli gölge.** Hiçbir önemli obje düz tek renk olmasın. Ana karakter, direkler, kuleler, ay, kayalar
-   ışık yönüne göre 4–6 tonla boyanır; tonlar noktalı geçişle birleşir. Işık yönü sahnedeki güneş/ay ile tutarlı
+2. **Hacimli gölge (8-bit usulü).** Hiçbir önemli obje düz tek renk olmasın. Ana karakter, direkler, kuleler, ay,
+   kayalar ışık yönüne göre 3–4 keskin tonla boyanır. Işık yönü sahnedeki güneş/ay ile tutarlı
    olsun (gün batımı soldaysa sol yüzler turuncu, sağ yüzler mor).
 3. **Kenar ışığı.** Gölge tarafındaki kenarda 1 px parlak çizgi (gün batımında sıcak `RIM`, gecede soğuk mavi-beyaz).
    Silüet binaların üst kenarında da ince ışık çizgisi.
