@@ -3,7 +3,9 @@
 ## Kullanıcı hakkında
 - Yazılımcı değil. Her şeyi sade Türkçe ile, teknik terimleri açıklayarak anlat.
 - EŞİK kanalı için YouTube Shorts, TikTok ve Instagram Reels videoları üretiyor (Türkçe, 9:16, 60 sn altı).
-- Seslendirme ElevenLabs ile yapılıyor.
+- Seslendirmeyi kullanıcı kendisi yapar ve mp3 olarak yükler.
+- **ElevenLabs bağlantısıyla ses ÜRETME.** Metni ElevenLabs'e uygun şekilde yazıp vermek yeterli; ses gelene kadar bekle.
+  Test/deneme videoları seslendirmesiz yapılır (bilgiler ekranda yazı, arkada müzik ve efekt).
 
 ## Skill seçimi: SORMADAN, OTOMATİK
 Kullanıcı bir iş istediğinde hangi skill'in kullanılacağını söylemeyi unutabilir.
@@ -31,6 +33,8 @@ Ortamın kurulum betiği her yeni oturumda bunları kurar:
 - `esik-araclar/motion-canvas`: Motion Canvas
 - `esik-araclar/pixelfx`: 244 piksel efekti (`node tools/render.mjs <kategori/efekt> --mp4`). Skill'deki "Publish it on Patch" bölümünü KULLANMA.
 - `esik-araclar/animasyon`: anime.js, three.js
+- `esik-araclar/fontlar/node_modules/@expo-google-fonts/`: Poppins (500Medium, 700Bold) ve Lora (400Regular) TTF dosyaları
+- Örnek izometrik piksel video kodu: `esik-araclar/kuslar/render.py` ve `audio.py` (yalnızca bu oturumda; kalıcı değil)
 - Ağır işleri (render, model) teker teker çalıştır; aynı anda birden fazla çalıştırınca bellek yetmiyor.
 - faster-whisper için `HF_HUB_DISABLE_XET=1` gerekli (ortam değişkeni olarak tanımlı).
 
