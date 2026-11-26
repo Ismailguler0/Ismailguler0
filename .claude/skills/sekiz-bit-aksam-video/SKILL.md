@@ -31,7 +31,7 @@ Bu dosyaları baştan yazma, kullan:
   - `upscale` (crop ile kamera), `captions`, `pill`, `signature`.
 - `render8.py <sahne.py> sheet|frame|video <çıktı>` – kontrol görüntüsü / tek kare / sessiz video.
 - `chipaudio.py <sahne.py> <çıktı.wav> [ses.mp3]` – sakin 8-bit müzik + efektler; ses verilirse müziği ~14 dB altında tutar, konuşmada kısar.
-- `ornek_fener.py` – ikinci örnek: fırtınada fener. Fırtına denizi = uzaktan yakına 8 dolu, gölgeli, sivri tepeli dalga katmanı (ince çizgi dalga YETMEZ, kullanıcı "durgun su gibi" dedi), kayaya koşan kıvrık dev dalga (`breaker`), fenere kadar fışkıran köpük sütunu + su sisi + kayadan akan şelale, 360° dönen huzme, kameraya gelince göz kamaşması (`glare_fx`), çarpmada kamera sarsıntısı, yağmur.
+- `ornek_fener.py` – ikinci örnek: fırtınada fener. Fırtına denizi = uzaktan yakına 12 dolu, üst üste binen dalga katmanı; her katman 3-4 dalganın karışımı (biri ters yönde) + dalga setleri + kabarma, dantel köpük, yatay su parlamaları, ufka yakın katmanlarda gök yansıması, tepelerde seyrek güneş parıltısı (ince çizgi dalga YETMEZ, kullanıcı "durgun su gibi" dedi), kayaya koşan kıvrık dev dalga (`breaker`), fenere kadar fışkıran köpük sütunu + su sisi + kayadan akan şelale, 360° dönen huzme, kameraya gelince göz kamaşması (`glare_fx`), çarpmada kamera sarsıntısı, yağmur.
 - `ornek_kuslar.py` – tam örnek sahne dosyası (15 sn, 4 sahne). Yeni videoda kopyalayıp konuya göre değiştir.
   Sahne dosyası şunları tanımlar: `DUR`, `FPS`, `CAPS`, `SFX`, `SIG_T`, `frame_at(t)`.
 

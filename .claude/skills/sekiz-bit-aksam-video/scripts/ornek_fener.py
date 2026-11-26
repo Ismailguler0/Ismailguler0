@@ -37,50 +37,72 @@ ROCK_LUM = np.clip(0.18 + 0.55 * np.clip((470 - _xx) / 220, 0, 1) * np.clip((700
 
 
 # ---------------------------------------------------------------- fırtına denizi
-NL = 8                                   # dalga katmanı (uzak -> yakın)
+NL = 12                                  # dalga katmanı (uzak -> yakın), üst üste biner
+SUN_X = 90                               # ufuktaki ışığın x'i (yansıma sütunu)
+_nz = np.random.default_rng(21).random((64, 64))
+_nz = cv2.resize(_nz, (256, 256), interpolation=cv2.INTER_CUBIC)
+_nz = (_nz - _nz.min()) / (_nz.max() - _nz.min())            # dantel köpük için yumuşak gürültü
 
 
 def layer_params(j):
     d = j / (NL - 1)
-    return dict(d=d, base=HZ + 10 + 310 * d ** 1.5, A=4 + 58 * d ** 1.4, lam=70 + 300 * d, v=30 + 150 * d,
-                ph=j * 2.1, ramp=[mix((40, 32, 84), (10, 10, 30), d), mix((80, 60, 128), (34, 28, 76), d),
-                                  mix((130, 100, 168), (78, 62, 132), d), mix((190, 170, 220), (150, 140, 206), d)])
+    return dict(d=d, base=HZ + 8 + 320 * d ** 1.6, A=6 + 92 * d ** 1.4, lam=60 + 320 * d, v=26 + 150 * d,
+                ph=j * 2.3, ramp=[mix((70, 40, 96), (14, 12, 38), d ** 0.6), mix((132, 70, 120), (40, 32, 88), d ** 0.6),
+                                  mix((196, 104, 128), (86, 70, 150), d ** 0.6), mix((246, 160, 140), (164, 152, 218), d ** 0.6)])
 
 
 def crest_y(p, xs, t):
-    th = 2 * math.pi * (xs - p['v'] * t) / p['lam'] + p['ph']
-    c = (0.5 + 0.5 * np.sin(th)) ** 2.4                          # sivri tepeler
-    c2 = 0.25 * np.sin(2.7 * th + 1.3 + t * 0.8)
-    return p['base'] - p['A'] * (0.2 + 0.8 * c + c2), c
+    k = 2 * math.pi / p['lam']; j = p['ph']
+    s_ = (0.6 * np.sin(k * (xs - p['v'] * t) + j) + 0.28 * np.sin(2.3 * k * (xs - 0.6 * p['v'] * t) + 2 * j)
+          + 0.22 * np.sin(0.7 * k * (xs + 0.35 * p['v'] * t) + 0.5 * j)
+          + 0.14 * np.sin(5.1 * k * (xs - 1.4 * p['v'] * t) + 3 * j)) / 1.2          # üstünde çalkantı
+    c = np.clip((s_ + 1) / 2, 0, 1) ** 1.7                                   # sivri, düzensiz tepeler
+    env = 0.35 + 0.65 * (0.5 + 0.5 * np.sin(2 * math.pi * xs / (p['lam'] * 5.3) - t * 0.55 + j))   # dalga setleri
+    heave = 0.18 * math.sin(t * 1.1 + j * 1.7)
+    top = p['base'] - p['A'] * (0.25 + 0.85 * env) * (0.12 + c) - p['A'] * heave
+    return top, c * (0.35 + 0.65 * env)
 
 
 def draw_layer(img, j, t):
-    p = layer_params(j); xs = np.arange(CW)
+    p = layer_params(j); xs = np.arange(CW); d = p['d']
     top, c = crest_y(p, xs, t)
+    slope = np.gradient(top)
     y0 = max(0, int(top.min()) - 2)
     yy = np.arange(y0, CH)[:, None]
-    rel = (yy - top[None, :]) / max(6.0, p['A'] * 0.9)
+    rel = (yy - top[None, :]) / max(5.0, p['A'] * 0.8)
     m = rel >= 0
-    lum = np.clip(0.95 - rel * 1.6, 0, 1) * (0.55 + 0.45 * c[None, :])
-    _rf(img, m, lum, p['ramp'], y0)
-    # köpük: tepe beyazı + yamaçtan akan şeritler
-    foam = (c > 0.72)
-    for x in np.nonzero(foam)[0]:
-        ty = int(top[x])
-        n = int(2 + 5 * p['d'] * (c[x] - 0.72) / 0.28 * 3)
-        for k in range(n):
-            y = ty + k
-            if 0 <= y < CH and BAY[y, x] < 1.0 - k / (n + 1):
-                img[y, x] = (240, 242, 255) if k < n // 2 + 1 else (196, 204, 240)
-    if p['d'] > 0.3:
-        r = np.random.default_rng(j * 7)
-        for q in range(int(10 + 30 * p['d'])):
-            x = int((r.random() * CW + p['v'] * t) % CW); ty = int(top[x])
-            L = int(3 + 10 * p['d'] * r.random())
-            for k in range(L):
-                y = ty + 4 + int(k * (1.5 + 2 * p['d'])); xx = x - k
-                if 0 <= xx < CW and 0 <= y < CH and k % 2 == 0:
-                    img[y, xx] = (176, 184, 230)
+    lum = 0.16 + 0.76 * np.exp(-rel * 2.0) * (0.35 + 0.65 * c[None, :])
+    _rf(img, m, np.clip(lum, 0, 1), p['ramp'], y0)
+    sub = img[y0:]
+    # suya özgü kısa yatay parlama çizgileri (yüzeyde akar)
+    hz = _nz[(yy * 3 + j * 29) % 256, ((xs[None, :] - p['v'] * 0.7 * t) / (6 + 10 * d)).astype(int) % 256]
+    streak = m & (rel > 0.15) & (rel < 2.5) & (hz > 0.8 - 0.12 * np.exp(-rel)) & ((yy % 3) == 0)
+    sub[streak] = p['ramp'][2]
+    # yaşayan köpük: tepede beyaz, yamaçta delik deşik dantel, zamanla dağılır
+    nzx = ((xs[None, :] - p['v'] * 0.9 * t) * (1.2 - 0.6 * d)).astype(int) % 256
+    nzy = ((rel * 22 + j * 37 + t * 6)).astype(int) % 256
+    lace = _nz[nzy, nzx]
+    cap = np.clip((c[None, :] - 0.4) / 0.35, 0, 1)
+    foam = m & (rel < 0.1 + 0.55 * cap) & (lace > 0.5 + 0.45 * rel / (0.1 + 0.55 * cap + 1e-6)) & (cap > 0)
+    sub[foam & (BAY[y0:, :] < 0.85)] = (238, 240, 255)
+    sub[foam & (BAY[y0:, :] >= 0.85)] = (180, 190, 236)
+    # tepeden arkaya dökülen köpük izleri
+    for x in np.nonzero(c > 0.45)[0][::2]:
+        L = int(4 + 22 * d * (c[x] - 0.45) / 0.55)
+        for q in range(L):
+            xx = x - q; yy_ = int(top[min(CW - 1, max(0, xx))]) + 1 + q // 4
+            if 0 <= xx < CW and 0 <= yy_ < CH and BAY[yy_, xx] < 0.7 - q / (L + 1) * 0.6:
+                img[yy_, xx] = (214, 220, 250)
+    # güneş yansıması: yalnız tepelerde küçük, seyrek parıltılar
+    w = int(30 + 80 * d)
+    for x in range(max(0, SUN_X - w), min(CW, SUN_X + w)):
+        fall = 1 - abs(x - SUN_X) / w
+        if c[x] > 0.25 and _nz[int(t * 30 + j * 13) % 256, (x * 5 + j * 7) % 256] > 0.72 - 0.15 * fall:
+            yy_ = int(top[x]) + 1
+            if 0 <= yy_ < CH:
+                img[yy_, x] = (255, 214, 150)
+                if x + 1 < CW:
+                    img[yy_, x + 1] = (255, 190, 120)
 
 
 def _rf(img, m, lum, ramp, y0):
