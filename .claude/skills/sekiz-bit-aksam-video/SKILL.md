@@ -43,6 +43,10 @@ Kullanıcının iki geri bildirimi bu tarzın sınırlarını çizer:
 - Yumuşak gölgeli ikinci deneme: "3D gibi olmuş, 8-bit görsel dil olmazsa olmaz" → hacim **keskin, az tonlu**
   8-bit diliyle verilir; asla yumuşak 3D geçiş olmaz.
 
+- Gerçekçi okyanus/3D çizici (Ultra-Water gibi FFT okyanus) denendi ve reddedildi: "8-bit tarzıma aykırı".
+  Gerçekçi render alıp palete indirmek de olmaz. Deniz, dalga, ateş, duman gibi her şey 8-bit diliyle,
+  kendi piksel kodumuzla çizilir; dışarıdan gerçekçi render motoru kullanılmaz.
+
 **8-bit dili (olmazsa olmaz):**
 - Her sahne `palettize(img, 'sahne_adı')` ile ~40 renklik sabit palete indirilir (büyütmeden önce).
   Göz kamaşması gibi beyaz patlamalar palete girmesin diye paletten SONRA çizilir.
