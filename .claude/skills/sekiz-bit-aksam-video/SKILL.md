@@ -31,6 +31,7 @@ Bu dosyaları baştan yazma, kullan:
   - `upscale` (crop ile kamera), `captions`, `pill`, `signature`.
 - `render8.py <sahne.py> sheet|frame|video <çıktı>` – kontrol görüntüsü / tek kare / sessiz video.
 - `chipaudio.py <sahne.py> <çıktı.wav> [ses.mp3]` – sakin 8-bit müzik + efektler; ses verilirse müziği ~14 dB altında tutar, konuşmada kısar.
+- `ornek_fener.py` – ikinci örnek: fırtınada fener, kayaya çarpan dalga + köpük patlaması, 360° dönen huzme, kameraya gelince göz kamaşması (`glare_fx`), çarpmada kamera sarsıntısı, yağmur.
 - `ornek_kuslar.py` – tam örnek sahne dosyası (15 sn, 4 sahne). Yeni videoda kopyalayıp konuya göre değiştir.
   Sahne dosyası şunları tanımlar: `DUR`, `FPS`, `CAPS`, `SFX`, `SIG_T`, `frame_at(t)`.
 
@@ -44,6 +45,7 @@ Kullanıcının iki geri bildirimi bu tarzın sınırlarını çizer:
 
 **8-bit dili (olmazsa olmaz):**
 - Her sahne `palettize(img, 'sahne_adı')` ile ~40 renklik sabit palete indirilir (büyütmeden önce).
+  Göz kamaşması gibi beyaz patlamalar palete girmesin diye paletten SONRA çizilir.
 - Gölge rampaları 3–4 ton; tonlar keskin sınırla ayrılır (`HARD_W` küçük). Noktalı (dither) geçiş yalnızca
   ton sınırındaki dar şeritte, gökyüzünde ve parıltılarda.
 - Karakterler `outlined(...)` ile 1 px koyu konturlu çizilir (klasik sprite). Sola baktırmak için `mirrored(img, bird, ...)`.
@@ -79,7 +81,7 @@ Ayrıca:
 
 ## Ses tasarımı
 - Müzik: sakin 8-bit, A minör pentatonik, ~92 BPM (`MUSIC = dict(bpm=..., root=...)` ile değiştirilebilir).
-- Efektler `SFX` listesinde: `chirp` (kuş), `whoosh` (kesme), `tick` (sayaç), `sparkle` (varış/ödül),
+- Efektler `SFX` listesinde: `crash` (dalga çarpması), `wind` (rüzgar, 3 sn), `glare` (göz kamaşması), `chirp` (kuş), `whoosh` (kesme), `tick` (sayaç), `sparkle` (varış/ödül),
   `flutter` (kanat), `chime` (imza), `blip` (yazı belirmesi – altyazılarda otomatik). Her efekti olayın tam karesine koy.
 - Son karışım loudnorm I=-14, TP=-1.2.
 

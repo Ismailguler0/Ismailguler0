@@ -9,7 +9,8 @@ import importlib.util, sys, wave, subprocess
 import numpy as np
 
 spec = importlib.util.spec_from_file_location('sahne', sys.argv[1])
-S = importlib.util.module_from_spec(spec); sys.path.insert(0, __import__('os').path.dirname(sys.argv[1])); spec.loader.exec_module(S)
+S = importlib.util.module_from_spec(spec); sys.path.insert(0, __import__('os').path.dirname(__import__('os').path.abspath(__file__)))
+sys.path.insert(0, __import__('os').path.dirname(sys.argv[1])); spec.loader.exec_module(S)
 SR = 48000; DUR = S.DUR; N = int(SR * DUR)
 rng = np.random.default_rng(11)
 music = np.zeros(N); sfx = np.zeros(N)
@@ -96,7 +97,33 @@ def chime(t0):
     t = tt(1.0); add(sfx, t0, 0.09 * (tri(880, t) + 0.6 * tri(1320, t)) * np.exp(-t / 0.35))
 
 
-KIND = dict(chirp=chirp, whoosh=whoosh, blip=blip, tick=tick, sparkle=sparkle, flutter=flutter, chime=chime)
+def _lp(x, k):
+    return np.convolve(x, np.ones(k) / k, mode='same')
+
+
+def crash(t0):
+    """Dalga çarpması: sert vuruş + uzun köpük hışırtısı."""
+    t = tt(1.6); nz = rng.standard_normal(len(t))
+    body = _lp(nz, 6) * np.exp(-t / 0.5) * np.clip(t / 0.01, 0, 1)
+    low = _lp(nz, 60) * np.exp(-t / 0.25) * 4
+    th = np.sin(2 * np.pi * np.cumsum(70 * np.exp(-t / 0.2) + 35) / SR) * np.exp(-t / 0.18)
+    add(sfx, t0, 0.35 * body + 0.5 * low + 0.35 * th)
+
+
+def wind(t0, dur=3.0):
+    t = tt(dur); nz = _lp(rng.standard_normal(len(t)), 40)
+    sw = 0.6 + 0.4 * np.sin(2 * np.pi * t / dur * 1.5 + rng.random() * 6)
+    add(sfx, t0, 0.5 * nz * sw * np.sin(np.pi * t / dur))
+
+
+def glare(t0):
+    """Göz kamaşması: yükselen parlak akor + parıltı hışırtısı."""
+    t = tt(1.0); e = np.sin(np.pi * np.clip(t / 1.0, 0, 1)) ** 2
+    ch = sum(tri(f, t) for f in (1046.5, 1318.5, 1568.0, 2093.0)) / 4
+    add(sfx, t0 - 0.5, 0.14 * ch * e + 0.05 * np.diff(rng.standard_normal(len(t) + 1)) * e)
+
+
+KIND = dict(crash=crash, wind=wind, glare=glare, chirp=chirp, whoosh=whoosh, blip=blip, tick=tick, sparkle=sparkle, flutter=flutter, chime=chime)
 for c in S.CAPS:
     blip(c[0] + 0.02)
 for t0, k in S.SFX:
