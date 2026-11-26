@@ -21,34 +21,43 @@ Kanal formatı aynen kalır: tek ekran, alt yazı hapı, en sonda EŞİK imzası
 
 ## Hazır araçlar (`scripts/`)
 Bu dosyaları baştan yazma, kullan:
-- `pix8.py` – çizim motoru: `dgrad`/`sky` (noktalı gradyan), `halo` (noktalı parıltı), `skyline`/`draw_skyline`
-  (yanan pencereli silüet), `streaks` (çizgi bulut), `sea` (dalga + güneş yansıması), `stars`, `disc`, `rect`,
-  `dither_rect`, `godwit`/`tiny_bird` (örnek karakterler), `sparkle`, `upscale` (crop ile kamera),
-  `captions`, `pill`, `signature` (EŞİK imzası). Paletler: `DUSK`, `NIGHT`, `DAWN`.
-- `render8.py <sahne.py> sheet|frame|video <çıktı>` – kontrol görüntüsü veya sessiz video.
-- `chipaudio.py <sahne.py> <çıktı.wav> [ses.mp3]` – sakin 8-bit müzik + efektler; ses verilirse müziği ~14 dB altında tutar ve konuşmada kısar.
-- `ornek_kuslar.py` – tam örnek sahne dosyası (15 sn). Yeni videoda bunu çalışma klasörüne kopyalayıp konuya göre değiştir.
+- `pix8.py` – çizim motoru (540×960 tuval, x2 büyütme):
+  - Hacim: `ellipsoid` (gövde, kafa, ay, ağaç tepesi), `cylinder` (direk, kule) – ışık yönüne göre rampa + noktalı ton geçişi + gölge tarafında kenar ışığı. `ramp_fill` ile her maskeye kendi ışık haritan.
+  - Atmosfer: `glow_layers` (geniş 3 katmanlı parıltı), `halo`, `cloud_band` (kalın, alt kenarı ışık alan bulut), `stars`.
+  - Ortam: `sky`/`dgrad`, `skyline`/`draw_skyline` (yanan pencere, kenar ışığı, sis), `sea` (dalga + güneş/ay/pencere yansımaları), `vgrad_rect`, `dither_rect`.
+  - Karakter: `godwit` (gerçekçi kıyı kuşu; stand/fly, nefes, kanat fazı), `mirrored` (karakteri sola baktırır), `tiny_bird`, `sparkle`.
+  - Rampalar: `R_BIRD`, `R_WING`, `R_WOOD`, `R_STONE`, `R_MOON`. Paletler: `DUSK`, `NIGHT`, `DAWN`.
+  - `upscale` (crop ile kamera), `captions`, `pill`, `signature`.
+- `render8.py <sahne.py> sheet|frame|video <çıktı>` – kontrol görüntüsü / tek kare / sessiz video.
+- `chipaudio.py <sahne.py> <çıktı.wav> [ses.mp3]` – sakin 8-bit müzik + efektler; ses verilirse müziği ~14 dB altında tutar, konuşmada kısar.
+- `ornek_kuslar.py` – tam örnek sahne dosyası (15 sn, 4 sahne). Yeni videoda kopyalayıp konuya göre değiştir.
   Sahne dosyası şunları tanımlar: `DUR`, `FPS`, `CAPS`, `SFX`, `SIG_T`, `frame_at(t)`.
 
 Çalışma klasörü: `/home/user/esik-araclar/<konu>/`. Python: `/home/user/esik-araclar/ana/bin/python`.
-Sahne dosyası `from pix8 import *` yapar; `render8.py` scripts klasörünü yola ekler.
 
-## Görsel kurallar (tarzın özü)
-- **Piksel kuralı:** her şey 270×480 tuvalde çizilir, x4 en yakın komşu büyütme. Kamera sadece tam piksel
-  crop ile hareket eder (z=2 için 135×240 pencere). Yumuşak bulanıklık, döndürme, ölçekleme yok.
-- **Gökyüzü:** üstte koyu mor → pembe → ufukta turuncu; bantlar arası Bayer noktalı geçiş. Konu gece ise `NIGHT`
-  (yıldızlar + ay parıltısı), sabah ise `DAWN`.
-- **Derinlik katmanları:** uzak silüet (pembe-mor, az pencere) → orta silüet (koyu mor, daha çok yanan pencere,
-  üst kenarda ince sıcak ışık çizgisi) → ön plan (en koyu, büyük ve detaylı obje). En az üç katman.
-- **Işık:** her sıcak ışığın (pencere, lamba, güneş, alev) etrafında `halo` ile noktalı parıltı. Ön planda en az
-  bir büyük, yanan pencere/lamba olsun – sahnenin sıcaklığı buradan gelir.
-- **Kenar ışığı:** ön plan objelerinin üst kenarına gün batımı rengi (`RIM`) 1 px çizgi.
-- **Ana karakter/obje büyük:** sahnenin yıldızı ekran genişliğinin en az 1/5'i kadar olsun; küçük kalırsa ölçeği büyüt
-  ya da z=2 crop kullan.
-- **Hep hareket:** bulutlar kayar, dalgalar akar, pencereler ara ara titrer, yıldızlar parlar, karakter nefes alır.
-- Ana görseller ekranın üst ve orta kısmında (son kare y 200–1300); altyazılar için alt kısım koyu zemin olsun.
-- Sahne geçişi: düz kesme + "whoosh" sesi. 3–5 sahne, her biri bir bilgiyi gösterir.
-- Bilgileri ekranda öğe olarak göster: sayaçlar (`pill` ile "Gün [7]", "[8.630] km"), etiketler, parıltı.
+## Görsel kurallar – çekiciliğin sırrı
+Kullanıcı ilk düz renkli denemeyi "piksel ama çekici değil" diye reddetti. Referansı çekici yapan dört şey var;
+dördü de her sahnede olmalı:
+1. **İnce piksel = detay.** 540×960 tuval. Kamera sadece tam piksel crop ile hareket eder (yakın plan 270×480).
+   Yumuşak bulanıklık, döndürme, ölçekleme yok.
+2. **Hacimli gölge.** Hiçbir önemli obje düz tek renk olmasın. Ana karakter, direkler, kuleler, ay, kayalar
+   ışık yönüne göre 4–6 tonla boyanır; tonlar noktalı geçişle birleşir. Işık yönü sahnedeki güneş/ay ile tutarlı
+   olsun (gün batımı soldaysa sol yüzler turuncu, sağ yüzler mor).
+3. **Kenar ışığı.** Gölge tarafındaki kenarda 1 px parlak çizgi (gün batımında sıcak `RIM`, gecede soğuk mavi-beyaz).
+   Silüet binaların üst kenarında da ince ışık çizgisi.
+4. **Atmosfer.** Güneş/ay/lamba/pencere etrafında `glow_layers`; ufukta sis; kalın, alt kenarı ışık alan bulutlar;
+   suda ışık yansımaları. Ön planda en az bir büyük sıcak ışık kaynağı (pencere, fener).
+
+Ayrıca:
+- **Gerçekçi karakter:** gerçek hayvanın/objenin oranlarını kullan (ince boyun, uzun bacak, tüy deseni, gözde parlama
+  pikseli). Önce karakteri boş gökyüzünde büyük çizip `frame` ile incele, "kardan adam" gibi üst üste toplar
+  görünüyorsa oranları düzelt; sonra sahneye koy.
+- **Ana karakter büyük:** genişliğin en az 1/5'i; yakın planda daha da büyük.
+- **Derinlik:** uzak silüet (pembe-mor, sisli) → orta silüet (yanan pencereler) → ön plan (hacimli, detaylı).
+- **Hep hareket:** bulut, dalga, pencere titremesi, yıldız, fener ışığı, karakterin nefesi/kafa hareketi.
+- Karakter hikâyede anlamlı yöne baksın (varışta güneşe doğru gibi) – gerekirse `mirrored`.
+- Ana görseller son karede y 200–1300; alt kısım koyu zemin (altyazı ve imza için).
+- 3–5 sahne, düz kesme + whoosh. Bilgiler ekranda öğe olarak (sayaç hapları, parıltı).
 
 ## Altyazı ve imza
 - Net yazı (büyütmeden sonra): koyu yuvarlak hap (30,26,26, %84), Poppins Medium 46 px, sıcak beyaz; anahtar kelime
