@@ -16,6 +16,7 @@ Hangisini seçtiğini bir cümleyle söylemen yeterli.
 |---|---|
 | EŞİK için bir KONU verildi, tarz belirtilmedi | `esik-olmayan-ada-shorts` (varsayılan) |
 | İzometrik piksel, ada/diorama, voxel karakter | `izometrik-piksel-video` |
+| 8-bit, piksel akşam/gün batımı, yandan bakış retro piksel | `sekiz-bit-aksam-video` (repoda: `.claude/skills/`) |
 | Düz şehir / kuşbakışı şehir-köy | `duz-sehir-video` |
 | Karşılaştırma, "bu köşede / öbür köşede", ring | `ring-video` |
 | Elle çizim, kağıt-mürekkep, bej kağıt | `kagit-murekkep-video` |
