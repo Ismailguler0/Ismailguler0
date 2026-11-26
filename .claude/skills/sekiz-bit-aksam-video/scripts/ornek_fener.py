@@ -36,50 +36,136 @@ ROCK_LUM = np.clip(0.18 + 0.55 * np.clip((470 - _xx) / 220, 0, 1) * np.clip((700
                    + 0.12 * (_rng.random((CH, CW)) < 0.08), 0, 1)
 
 
-def sea_storm(img, t):
-    dgrad(img, [(HZ, (58, 40, 92)), (720, (26, 22, 62)), (CH, (10, 10, 28))], bands=5)
-    for j in range(26):
-        y0 = HZ + 4 + j * j * 0.55 + j * 3
-        A = 1.5 + j * 0.45; lam = 38 + j * 7; sp = 30 + j * 4
-        xs = np.arange(0, CW, 2)
-        ys = y0 + A * np.sin(2 * math.pi * (xs + sp * t) / lam + j * 1.7)
-        col = mix((120, 90, 150), (40, 34, 80), j / 26)
-        pts = np.stack([xs, ys], 1).astype(np.int32)
-        cv2.polylines(img, [pts], False, C(col), 1)
-        crest = np.sin(2 * math.pi * (xs + sp * t) / lam + j * 1.7) < -0.85
-        for x, y in pts[crest]:
-            if 0 <= y < CH and BAY[y % CH, x] < 0.6:
-                img[max(0, y - 1), x] = (200, 200, 230)
-    # kayaya doğru gelen dev dalga
-    for tc in CRASHES:
-        a = t - (tc - 1.3)
-        if 0 <= a < 1.3:
-            k = a / 1.3; wx = int(-120 + (300 + 120) * k); h = int(24 + 60 * k)
-            base = HZ + 60
-            pts = np.array([(wx - 240, base), (wx - 120, base - h * 0.45), (wx - 30, base - h * 0.95), (wx + 4, base - h),
-                            (wx + 22, base - h * 0.8), (wx + 26, base - h * 0.55), (wx + 14, base - h * 0.5), (wx + 40, base)], np.int32)
-            cv2.fillPoly(img, [pts], (66, 52, 118))
-            body = np.array([(wx - 200, base), (wx - 90, base - h * 0.5), (wx - 20, base - h * 0.8), (wx, base)], np.int32)
-            cv2.fillPoly(img, [body], (96, 76, 150))
-            cv2.polylines(img, [pts[1:7]], False, (236, 238, 252), 3)
-            for q in range(0, int(h * 0.9), 3):  # kıvrılan tepe köpüğü
-                dither_rect(img, wx - 60 + q * 0.4, base - h + q * 0.3, wx + 24, base - h + q * 0.3 + 3, (226, 230, 250), 0.55 - q / (h * 2))
+# ---------------------------------------------------------------- fırtına denizi
+NL = 8                                   # dalga katmanı (uzak -> yakın)
+
+
+def layer_params(j):
+    d = j / (NL - 1)
+    return dict(d=d, base=HZ + 10 + 310 * d ** 1.5, A=4 + 58 * d ** 1.4, lam=70 + 300 * d, v=30 + 150 * d,
+                ph=j * 2.1, ramp=[mix((40, 32, 84), (10, 10, 30), d), mix((80, 60, 128), (34, 28, 76), d),
+                                  mix((130, 100, 168), (78, 62, 132), d), mix((190, 170, 220), (150, 140, 206), d)])
+
+
+def crest_y(p, xs, t):
+    th = 2 * math.pi * (xs - p['v'] * t) / p['lam'] + p['ph']
+    c = (0.5 + 0.5 * np.sin(th)) ** 2.4                          # sivri tepeler
+    c2 = 0.25 * np.sin(2.7 * th + 1.3 + t * 0.8)
+    return p['base'] - p['A'] * (0.2 + 0.8 * c + c2), c
+
+
+def draw_layer(img, j, t):
+    p = layer_params(j); xs = np.arange(CW)
+    top, c = crest_y(p, xs, t)
+    y0 = max(0, int(top.min()) - 2)
+    yy = np.arange(y0, CH)[:, None]
+    rel = (yy - top[None, :]) / max(6.0, p['A'] * 0.9)
+    m = rel >= 0
+    lum = np.clip(0.95 - rel * 1.6, 0, 1) * (0.55 + 0.45 * c[None, :])
+    _rf(img, m, lum, p['ramp'], y0)
+    # köpük: tepe beyazı + yamaçtan akan şeritler
+    foam = (c > 0.72)
+    for x in np.nonzero(foam)[0]:
+        ty = int(top[x])
+        n = int(2 + 5 * p['d'] * (c[x] - 0.72) / 0.28 * 3)
+        for k in range(n):
+            y = ty + k
+            if 0 <= y < CH and BAY[y, x] < 1.0 - k / (n + 1):
+                img[y, x] = (240, 242, 255) if k < n // 2 + 1 else (196, 204, 240)
+    if p['d'] > 0.3:
+        r = np.random.default_rng(j * 7)
+        for q in range(int(10 + 30 * p['d'])):
+            x = int((r.random() * CW + p['v'] * t) % CW); ty = int(top[x])
+            L = int(3 + 10 * p['d'] * r.random())
+            for k in range(L):
+                y = ty + 4 + int(k * (1.5 + 2 * p['d'])); xx = x - k
+                if 0 <= xx < CW and 0 <= y < CH and k % 2 == 0:
+                    img[y, xx] = (176, 184, 230)
+
+
+def _rf(img, m, lum, ramp, y0):
+    sub = img[y0:]
+    n = len(ramp); v = np.clip(lum, 0, 0.9999) * (n - 1); k = np.floor(v).astype(int); f = v - k
+    k2 = np.minimum(k + 1, n - 1)
+    f = np.clip((f - 0.5) / (2 * HARD_W) + 0.5, 0, 1)
+    pick = np.where(BAY[y0:y0 + m.shape[0], :m.shape[1]] < f, k2, k)
+    R = np.array(ramp, np.uint8); sub[m] = R[pick[m]]
+
+
+def breaker(img, t):
+    """Her çarpmadan önce kayaya koşan, tepesi kıvrılan dev dalga."""
+    for i, tc in enumerate(CRASHES):
+        a = t - (tc - 1.4)
+        if not (0 <= a < 1.45):
+            continue
+        k = min(1.0, a / 1.4); wx = -160 + (270 + 160) * ease(k) ** 0.8
+        h = 70 + 80 * k; base = 690
+        xs = np.arange(max(0, int(wx - 330)), min(CW, int(wx + 40)))
+        if len(xs) < 2:
+            continue
+        u = (xs - (wx - 330)) / 370
+        prof = np.where(u < 0.82, (np.clip(u, 0, 1) / 0.82) ** 1.8, 1 - (np.clip(u - 0.82, 0, 1) / 0.18) ** 0.7 * 0.9)
+        top = base - h * np.clip(prof, 0, 1)
+        y0 = max(0, int(top.min()) - 2); yy = np.arange(y0, CH)[:, None]
+        m = (yy >= top[None, :]) & (yy < base + 30)
+        rel = (yy - top[None, :]) / h
+        lum = np.clip(0.95 - rel * 1.5, 0, 1) * (0.5 + 0.5 * np.clip(u[None, :] * 1.2, 0, 1))
+        sub = img[:, xs[0]:xs[-1] + 1]
+        _rf(sub, m, lum, [(16, 14, 44), (46, 38, 98), (92, 78, 156), (168, 160, 218)], y0)
+        # kıvrılan beyaz dudak
+        lipx = wx - 10; lipy = base - h
+        r = np.random.default_rng(300 + i)
+        for b in range(26):
+            ang = math.pi * (0.1 + 0.9 * b / 26); rr = h * 0.22
+            bx = lipx + rr * math.cos(ang) * 1.3 + r.random() * 6; by = lipy + rr * (1 - math.sin(ang)) + r.random() * 6
+            disc(img, bx, by, 3 + r.random() * 4, (240, 242, 255) if r.random() < 0.7 else (190, 200, 240))
+        # rüzgarın geriye savurduğu köpük
+        for q in range(60):
+            life = r.random(); age = (a * 1.8 + life) % 1.0
+            x = lipx - 20 - age * 140 * (0.5 + r.random()); y = lipy - 10 - age * 30 + r.random() * 16
+            if r.random() > age:
+                rect(img, x, y, x + 1 + int(r.random() * 2), y + 1, (226, 230, 252))
+        # dalganın yüzündeki köpük şeritleri
+        for q in range(30):
+            x = int(wx - 40 - r.random() * 220)
+            if 0 <= x - xs[0] < len(top):
+                ty = int(top[x - xs[0]]); L = int(6 + r.random() * 18)
+                for kk in range(0, L, 2):
+                    yy_ = ty + 6 + kk
+                    if 0 <= yy_ < CH and 0 <= x - kk // 3 < CW:
+                        img[yy_, x - kk // 3] = (176, 186, 232)
+
+
+def sea_storm(img, t, part):
+    if part == 'back':
+        dgrad(img, [(HZ, (70, 50, 110)), (720, (26, 22, 62)), (CH, (10, 10, 28))], bands=5)
+        for j in range(NL):
+            if layer_params(j)['base'] < 655:
+                draw_layer(img, j, t)
+    else:
+        for j in range(NL):
+            if layer_params(j)['base'] >= 655:
+                draw_layer(img, j, t)
 
 
 def spray(img, t):
     for i, tc in enumerate(CRASHES):
         a = t - tc
-        if not (0 <= a < 1.8):
+        if not (0 <= a < 2.4):
             continue
         r = np.random.default_rng(100 + i)
-        # köpük patlaması: kabarık topaklar, kenarları noktalı
-        if a < 1.5:
-            H = 230 * math.sin(math.pi * min(a / 1.05, 1.0)) * (1 if a < 1.05 else max(0, 1 - (a - 1.05) / 0.45))
-            for b in range(46):
+        # su sisi: yayılan, sönen noktalı bulut
+        mist = max(0.0, 1 - a / 2.4)
+        halo(img, 300 - 30 * a, 520 - 40 * a, 120 + 120 * a, (190, 196, 236), 0.75 * mist, 0.5 * mist, 0.8)
+        # dev köpük sütunu (fener lambasına kadar)
+        if a < 1.9:
+            H = 380 * math.sin(math.pi * min(a / 1.2, 1.0)) if a < 1.2 else 380 * max(0, 1 - (a - 1.2) / 0.7) * 0.6
+            spread = 60 + 120 * a
+            for b in range(90):
                 u = r.random(); v = r.random()
-                bx = 268 + u * 96 - 40 * a * (u - 0.5)
-                by = 626 - H * (v ** 0.6)
-                br = (5 + 16 * r.random()) * (1 - 0.5 * v) * (1 - 0.4 * a)
+                bx = 300 + (u - 0.5) * spread - 50 * a * v
+                by = 650 - H * (v ** 0.55)
+                br = (6 + 20 * r.random()) * (1 - 0.55 * v) * (1 - 0.35 * a)
                 if br < 2:
                     continue
                 x0, x1, y0, y1 = max(0, int(bx - br)), min(CW, int(bx + br + 1)), max(0, int(by - br)), min(CH, int(by + br + 1))
@@ -89,23 +175,35 @@ def spray(img, t):
                 sub = img[y0:y1, x0:x1]; bb = BAY[y0:y1, x0:x1]
                 core = d < 0.62; ring = (d >= 0.62) & (d < 1) & (bb < 1.25 * (1 - d) + 0.1)
                 shade = (_yy[y0:y1, x0:x1] - by) / br > 0.35
-                sub[core & ~shade] = (246, 248, 255); sub[core & shade] = (178, 190, 232)
-                sub[ring] = (206, 214, 244)
-        for _ in range(140):
-            x0 = 262 + r.random() * 110; vx = -90 + r.random() * 150; vy = -(260 + r.random() * 260)
-            sz = 1 + int(r.random() * 2.5); life = 1.0 + r.random() * 0.7
+                sub[core & ~shade] = (246, 248, 255); sub[core & shade] = (178, 190, 232); sub[ring] = (206, 214, 244)
+        # damlalar
+        for _ in range(320):
+            x0 = 250 + r.random() * 120; vx = -160 + r.random() * 260; vy = -(300 + r.random() * 420)
+            sz = 1 + int(r.random() * 3); life = 1.2 + r.random() * 0.9
             if a > life:
                 continue
-            x = x0 + vx * a; y = 600 + vy * a + 0.5 * 520 * a * a
-            fade = a / life
-            if r.random() < fade * 0.8 or y > 660:
+            x = x0 + vx * a; y = 650 + vy * a + 0.5 * 560 * a * a
+            if r.random() < (a / life) * 0.8 or y > 700:
                 continue
-            col = (244, 246, 255) if r.random() < 0.6 else (170, 190, 230)
-            rect(img, x, y, x + sz, y + sz, col)
-        # yüzeyde yayılan köpük
-        if a > 0.6:
-            w = int(60 + 140 * min(1, (a - 0.6) / 1.0))
-            dither_rect(img, 300 - w, 628, 300 + 20, 640, (220, 226, 245), 0.55 * (1 - (a - 0.6) / 1.2))
+            rect(img, x, y, x + sz, y + sz, (244, 246, 255) if r.random() < 0.6 else (170, 190, 230))
+        # kayadan aşağı akan şelaleler (ince, düzensiz, kesik)
+        if 0.6 < a < 2.4:
+            fl = min(1.0, (a - 0.6) / 0.5) * max(0.0, 1 - (a - 1.6) / 0.8)
+            for q in range(9):
+                x = int(266 + r.random() * 200)
+                ytop = int(np.interp(x, ROCK[:10, 0], ROCK[:10, 1])) + 2
+                off = int((a * 260 + r.random() * 40)) % 14
+                for y in range(ytop + off % 6, 700, 1):
+                    if ((y + off) % 9) < 6 and r.random() < fl:
+                        xx = x + int(2 * math.sin(y * 0.15 + q))
+                        if 0 <= xx < CW - 1:
+                            img[y, xx] = (226, 232, 252)
+        # dipte köpük topakları
+        if 0.4 < a < 2.4:
+            fa = max(0.0, 1 - (a - 0.4) / 2.0)
+            for b in range(int(40 * fa)):
+                bx = 300 - r.random() * (60 + 220 * min(1, (a - 0.4) / 1.2)); by = 646 + r.random() * 20
+                disc(img, bx, by, 1 + r.random() * 3, (232, 236, 252) if r.random() < 0.6 else (180, 192, 236))
 
 
 def rain(img, t):
@@ -180,9 +278,11 @@ def world(t):
     glow_layers(img, 90, HZ - 6, 200, (240, 120, 100))
     for (x, y, Lc, thc, dark, lit, sp) in CL:
         cloud_band(img, x, y, Lc, thc, dark, lit, t, sp)
-    sea_storm(img, t)
+    sea_storm(img, t, 'back')
     th = beam_angle(t)
     lighthouse(img, t, th)
+    breaker(img, t)
+    sea_storm(img, t, 'front')
     spray(img, t)
     rain(img, t)
     img = palettize(img, 'fener', 48)
@@ -193,8 +293,8 @@ def world(t):
 def shake(t):
     for tc in CRASHES:
         a = t - tc
-        if 0 <= a < 0.4:
-            k = int(3 * (1 - a / 0.4))
+        if 0 <= a < 0.5:
+            k = int(5 * (1 - a / 0.5))
             return (k if int(a * 30) % 2 else -k), (k if int(a * 30) % 3 else 0)
     return 0, 0
 
@@ -202,7 +302,8 @@ def shake(t):
 def frame_at(t):
     img = world(t)
     if t < T2 or t >= T3:
-        fr = upscale(img)
+        dx, dy = shake(t)
+        fr = upscale(np.roll(img, (dy, dx), (0, 1)) if (dx or dy) else img)
     else:
         tl = t - T2; k = ease(tl / 1.2)
         cx = int(270 + (LAMP[0] - 270) * k); cy = int(480 + (LAMP[1] + 60 - 480) * k)
