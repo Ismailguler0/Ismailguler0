@@ -24,6 +24,7 @@ Hangisini seçtiğini bir cümleyle söylemen yeterli.
 | Yukarıdakilere uymayan genel Türkçe 9:16 kısa video | `shorts-2d-video` |
 | Word / PDF / PowerPoint / Excel dosyası | `docx` / `pdf` / `pptx` / `xlsx` |
 | Yeni skill yazmak veya mevcut skill'i düzeltmek | `skill-creator` |
+| Konu / fikir arama, "ne çekelim", viral konu | `fikir-avcisi` agent'ı (`.claude/agents/`) |
 
 - İstek birden fazla tarza uyuyorsa en uygununu seç, nedenini bir cümleyle söyle; kullanıcı isterse değiştirirsin.
 - Hiçbir skill uymuyorsa skill'siz yap.
