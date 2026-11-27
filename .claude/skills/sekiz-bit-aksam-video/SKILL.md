@@ -76,6 +76,24 @@ Ayrıca:
 - Ana görseller son karede y 200–1300; alt kısım koyu zemin (altyazı ve imza için).
 - 3–5 sahne, düz kesme + whoosh. Bilgiler ekranda öğe olarak (sayaç hapları, parıltı).
 
+
+## Katman yığma (sprite stacking) – dönen 3D piksel nesneler
+Kullanıcı Instagram'da gördü, denendi ve beğenildi ("Güzel olmuş, beğendim"). Nesne yatay dilimlere bölünür; her dilim
+tek bir resim olarak döndürülür ve 1 kat yukarı kaydırılıp üst üste konur → hiç 3D program olmadan her açıdan
+görünen 8-bit nesne. Dönen nesne, uzay aracı, gemi, araç, bina, makine anlatımlarında kullan.
+- Örnekler: `ornek_voyager.py` (uzay aracı, altın plak, Satürn halkaları; 25 sn) ve `ornek_kasaba.py`
+  (dilimlerden kasaba, dönen takip kamerası, araba sürüşü; 13 sn). Gerekeni kopyala.
+- Model: `Vox(nx, ny, nz)` + `put(maske, renk)`; şekilleri yuvarlak kur (superellipse, küre, silindir maskeleri) –
+  kullanıcı köşeli kutuları "çok net" buldu. `shade_bake` gölgeyi **3 düz tona** pişirir.
+- Çizim: `draw_stack(img, obj, S, px, py, açı, K, sq)` her dilimi `cv2.warpAffine(INTER_NEAREST)` ile döndürür.
+  Noktaları tek tek döndürme (boşluk ve karıncalanma yapar). Aynı noktaya iki renk koyma (son konan kalmalı).
+- Çizim sırası: önce arkadaki nesne (ekran y'si küçük), sonra öndeki; her nesnede alttan üste dilim.
+- Kamera: her şey dilimlerden olursa kamera dönebilir (`ornek_kasaba.py`: zemin de aynı açıyla `warpAffine`,
+  sonsuz çimen için `BORDER_WRAP`). Eğik bakış `SQ≈0.62`, kat yüksekliği `ZS≈0.85`.
+- **8-bit ayarı (kullanıcı "daha 8-bit, basit" dedi):** tuval 180×320, x6 büyütme (iri piksel); **elle seçilmiş
+  sabit palet** (24–32 renk, `pal8` LUT) – otomatik palet önemli renkleri atabiliyor (cam mavisi pembeye döndü);
+  gökyüzü geçişlerine Bayer noktası ekle; dış kontur 1 px koyu.
+
 ## Altyazı ve imza
 - Net yazı (büyütmeden sonra): koyu yuvarlak hap (30,26,26, %84), Poppins Medium 46 px, sıcak beyaz; anahtar kelime
   turuncu (255,150,60) – metinde `[köşeli parantez]` ile işaretle. Merkez y≈1608.
