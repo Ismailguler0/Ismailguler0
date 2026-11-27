@@ -123,7 +123,27 @@ def glare(t0):
     add(sfx, t0 - 0.5, 0.14 * ch * e + 0.05 * np.diff(rng.standard_normal(len(t) + 1)) * e)
 
 
-KIND = dict(crash=crash, wind=wind, glare=glare, chirp=chirp, whoosh=whoosh, blip=blip, tick=tick, sparkle=sparkle, flutter=flutter, chime=chime)
+def boom(t0, far=False):
+    """Derin patlama gümlemesi (far=True: uzaktan gelen boğuk bum)."""
+    tn = tt(3.0 if not far else 2.0); f = (60 if not far else 45) * np.exp(-tn / 0.5) + 22
+    s = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-tn / (0.9 if not far else 0.6))
+    nz = _lp(rng.standard_normal(len(tn)), 30 if not far else 120) * np.exp(-tn / (0.7 if not far else 0.4))
+    add(sfx, t0, (0.8 * s + 1.4 * nz) * (1.0 if not far else 0.45))
+
+
+def bell(t0):
+    """İtfaiye çanı: iki vuruş."""
+    for k in range(3):
+        tn = tt(0.6); ch = sum(np.sin(2 * np.pi * f * tn) * np.exp(-tn / 0.25) for f in (1180, 1770, 2650)) / 3
+        add(sfx, t0 + k * 0.28, 0.12 * ch)
+
+
+def rumble(t0, dur=2.0):
+    tn = tt(dur); nz = _lp(rng.standard_normal(len(tn)), 200)
+    add(sfx, t0, 2.2 * nz * (tn / dur) ** 1.5)
+
+
+KIND = dict(boom=boom, farboom=lambda t: boom(t, True), bell=bell, rumble=rumble, crash=crash, wind=wind, glare=glare, chirp=chirp, whoosh=whoosh, blip=blip, tick=tick, sparkle=sparkle, flutter=flutter, chime=chime)
 for c in S.CAPS:
     blip(c[0] + 0.02)
 for t0, k in S.SFX:
