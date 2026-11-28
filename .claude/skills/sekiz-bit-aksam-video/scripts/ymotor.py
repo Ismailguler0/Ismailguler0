@@ -152,12 +152,22 @@ def fog(img, y0, depth, col):
 
 
 def press_text(img, txt, cx, cy, size, col, outl=OUTL):
+    """Press Start 2P yazı (eş aralıklı). 'İ' bu fontta küçük harf gibi durduğu için I + elle nokta çizilir."""
     f = ImageFont.truetype(PRESS, size)
     im = Image.fromarray(img); d = ImageDraw.Draw(im)
-    w = d.textlength(txt, font=f)
+    w = size * len(txt); x0 = cx - w / 2; y0 = cy - size / 2; u = max(1, size // 8)
+
+    def draw(ox, oy, c):
+        for i, ch in enumerate(txt):
+            x = x0 + i * size + ox
+            if ch == 'İ':
+                d.text((x, y0 + oy), 'I', font=f, fill=c)
+                d.rectangle([x + 3 * u, y0 + oy - 2 * u, x + 5 * u - 1, y0 + oy - 1], fill=c)
+            else:
+                d.text((x, y0 + oy), ch, font=f, fill=c)
     for ox, oy in ((1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)):
-        d.text((cx - w / 2 + ox, cy - size / 2 + oy), txt, font=f, fill=outl)
-    d.text((cx - w / 2, cy - size / 2), txt, font=f, fill=col)
+        draw(ox, oy, outl)
+    draw(0, 0, col)
     img[:] = np.array(im)
 
 
